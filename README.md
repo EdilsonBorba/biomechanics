@@ -1,4 +1,5 @@
 Introduction
+
 This script is designed for processing and analyzing marker and angle data from motion capture systems. It includes functions for filtering, processing, and analyzing kinematic data to extract gait events such as touchdown (TD) and take-off (TO) events.
 
 Requirements
