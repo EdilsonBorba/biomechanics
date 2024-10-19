@@ -2,7 +2,7 @@
 # borba.edi@gmail.com
 
 """
-# Athlete Classification Script
+# Classification Script
 
 ## Overview:
 This script processes kinematic data (position, angle, and marker data) from an athlete's motion analysis, applies filtering, and then classifies the athlete as "Aerial" or "Terrestrial" based on specific criteria derived from the angles and foot positions at touch-down (TD) events.
