@@ -1,0 +1,276 @@
+# by Edilson Borba 
+# borba.edi@gmail.com
+
+Path = '/Users/borba/Documents/Doutorado/Opencap Volodalen/Amostras/'
+Name = 'Angela'
+Trial = 1
+Treadmill_Speed_Km = 10 # Velocidade da esteira em Km/h
+
+Output = '/Users/borba/Desktop/'
+
+# Aplicar filtro passa-baixa
+cutoff = 6  # Frequência de corte em Hz
+order = 2  # Ordem do filtro
+
+Input = Path + Name + '/'
+
+#Import libraries
+import pandas as pd
+import os
+import numpy as np
+from scipy.signal import butter, filtfilt
+from scipy.signal import find_peaks
+from scipy.signal import butter
+
+# Função para aplicar filtro passa-baixa
+def butter_lowpass_filter(data, cutoff, fs, order):
+    nyquist = 0.5 * fs
+    normal_cutoff = cutoff / nyquist
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    y = filtfilt(b, a, data)
+    return y
+
+# Função para buscar e carregar arquivos com "10" no nome e "_pos_global.sto" para posição # Substituir o 10 por alguma aprte no nome do arquivo
+def carregar_arquivos(diretorio_amostra):
+    nome_pessoa = os.path.basename(diretorio_amostra)
+    caminho_marker_data = os.path.join(diretorio_amostra, 'MarkerData')
+    caminho_opensim_data = os.path.join(diretorio_amostra, 'OpenSimData', 'Model')
+
+    if not os.path.exists(caminho_marker_data) or not os.path.exists(caminho_opensim_data):
+        print(f"Diretórios esperados não encontrados para {nome_pessoa}")
+        return None, None, None
+
+    arquivo_posicao, arquivo_angulo, arquivo_marker = None, None, None
+
+    # Buscar arquivos dentro das pastas esperadas
+    for file_name in os.listdir(caminho_opensim_data):
+        if file_name.endswith('_pos_global.sto') and '10' in file_name: # Substituir o 10 por alguma aprte no nome do arquivo
+            arquivo_posicao = file_name
+        if file_name.endswith('_q.sto') and '10' in file_name: # Substituir o 10 por alguma aprte no nome do arquivo
+            arquivo_angulo = file_name
+
+    for file_name in os.listdir(caminho_marker_data):
+        if file_name.endswith('.trc') and '10' in file_name: # Substituir o 10 por alguma aprte no nome do arquivo
+            arquivo_marker = file_name
+
+    if arquivo_posicao and arquivo_angulo and arquivo_marker:
+        data_position = processar_arquivo_para_dataframe(os.path.join(caminho_opensim_data, arquivo_posicao), 19)
+        data_angles = processar_arquivo_para_dataframe(os.path.join(caminho_opensim_data, arquivo_angulo), 11)
+        data_marker = processar_arquivo_para_dataframe(os.path.join(caminho_marker_data, arquivo_marker), 6)
+        return data_position, data_angles, data_marker
+
+    else:
+        print(f"Arquivos incompletos ou sem '10' no nome para {nome_pessoa}")
+        return None, None, None
+
+# Função para processar os arquivos e retornar um DataFrame sem salvar
+def processar_arquivo_para_dataframe(File_Path, linhas_ignoradas):
+    with open(File_Path, 'r') as file:
+        linhas = file.readlines()[linhas_ignoradas:]
+
+    dados = [linha.strip().split() for linha in linhas]
+    return pd.DataFrame(dados)
+
+# Diretório da amostra
+diretorio_amostra = Input
+
+# Carregar arquivos da amostra
+data_position, data_angles, data_marker = carregar_arquivos(diretorio_amostra)
+
+# Verifica se os dados foram carregados corretamente
+if data_position is None or data_angles is None or data_marker is None:
+    print("Erro no carregamento dos dados. Verifique os arquivos e tente novamente.")
+else:
+    try:
+        # Converter DataFrames para arrays numpy
+        Data_Marker = np.array(data_marker).astype(float)
+        Data_Position = np.array(data_position).astype(float)
+        Data_Angle = np.array(data_angles).astype(float)
+        
+                # Extrair informações de tempo e frame
+        Time = Data_Position[:,0]
+        Frame = Data_Marker[:,0]
+        fsample = 1 / (Time[2] - Time[1])
+        print("Frequência de amostragem:", round(fsample), "Hz")
+
+        dt_Kinematic = 1/fsample
+
+        Gravity = 9.80665
+        Pi = 3.14159265358979323846
+
+        # Filtrar dados de Marcadores
+        filtered_data_marker = np.zeros_like(Data_Marker, dtype=float)
+        for col in range(Data_Marker.shape[1]):
+            filtered_data_marker[:, col] = butter_lowpass_filter(Data_Marker[:, col].astype(float), cutoff, fsample, order)
+        Data_Marker = filtered_data_marker
+
+        # Filtrar dados de Posição
+        filtered_data_position = np.zeros_like(Data_Position, dtype=float)
+        for col in range(Data_Position.shape[1]):
+            filtered_data_position[:, col] = butter_lowpass_filter(Data_Position[:, col].astype(float), cutoff, fsample, order)
+        Data_Position = filtered_data_position
+
+        # Filtrar dados de Ângulos
+        filtered_data_angle = np.zeros_like(Data_Angle, dtype=float)
+        for col in range(Data_Angle.shape[1]):
+            filtered_data_angle[:, col] = butter_lowpass_filter(Data_Angle[:, col].astype(float), cutoff, fsample, order)
+        Data_Angle = filtered_data_angle
+
+# Definição das variáveis extraídas
+        # Data Position
+        Pelvis_X = Data_Position[:,1]
+        Pelvis_Y = Data_Position[:,2]
+        Pelvis_Z = Data_Position[:,3]
+
+        # Data Angles
+        R_Hip_Flexion = Data_Angle[:,7]
+        R_Knee_Flexion = Data_Angle[:,10]
+        R_Ankle_Flexion = Data_Angle[:,12]
+
+        L_Hip_Flexion = Data_Angle[:,15]
+        L_Knee_Flexion = Data_Angle[:,18]
+        L_Ankle_Flexion = Data_Angle[:,20]
+
+        # Data Markers
+        Midhip_X = Data_Marker[:,23]  # MidHip = mean hip right and hip left 
+
+        L_Toe_X = Data_Marker[:,47]  # Small Toe
+        L_Toe_Y = Data_Marker[:,48]
+        L_Toe_Z = Data_Marker[:,49]
+        L_Heel_X = Data_Marker[:,50]
+        L_Heel_Y = Data_Marker[:,51]
+        L_Heel_Z = Data_Marker[:,52]
+        L_Calc_X = Data_Marker[:,110]
+        L_Calc_Y = Data_Marker[:,111]
+        L_Calc_Z = Data_Marker[:,112]
+
+        R_Toe_X = Data_Marker[:,56]
+        R_Toe_Y = Data_Marker[:,57]
+        R_Toe_Z = Data_Marker[:,58]
+        R_Heel_X = Data_Marker[:,59]
+        R_Heel_Y = Data_Marker[:,60]
+        R_Heel_Z = Data_Marker[:,61]
+        R_Calc_X = Data_Marker[:,92]
+        R_Calc_Y = Data_Marker[:,93]
+        R_Calc_Z = Data_Marker[:,94]
+        
+    except Exception as e:
+        print("Ocorreu um erro durante a análise dos dados:", e)
+
+# KINEMATIC TOUCH-DOWN (TD) AND TAKE-OFF (TO) EVENTS DETERMINATION
+# Zeni et al. 2008 (doi:10.1016/j.gaitpost.2007.07.007) method:
+
+R_HeelSacrum = R_Heel_X - Midhip_X
+R_ToeSacrum = R_Toe_X - Midhip_X
+
+L_HeelSacrum = L_Heel_X - Midhip_X
+L_ToeSacrum = L_Toe_X - Midhip_X
+
+TD_R, _ = find_peaks(R_HeelSacrum, distance=30) #distance between peaks of at least 50 frames
+TO_R,_ = find_peaks(-R_ToeSacrum, distance=30) #distance between peaks of at least 50 frames
+TD_R = TD_R.flatten()
+TO_R = TO_R.flatten()
+# Delete the First TO value if is lower than the First TD value (to start with TD always: TD1-TO-TD2)
+if TO_R[0] < TD_R[0]:
+    TO_R = TO_R[1:]
+
+TD_L, _ = find_peaks(L_HeelSacrum, distance=30) #distance between peaks of at least 50 frames
+TO_L,_ = find_peaks(-L_ToeSacrum, distance=30) #distance between peaks of at least 50 frames
+TD_L = TD_L.flatten()
+TO_L = TO_L.flatten()
+# Delete the First TO value if is lower than the First TD value (to start with TD always: TD1-TO-TD2)
+if TO_L[0] < TD_L[0]:
+    TO_L = TO_L[1:]
+    
+if TD_L[0] < TO_R[0]:
+    TD_L = TD_L[1:]
+    TO_L = TO_L[1:]
+
+# Manual TD TO se precisar
+# TD_R = TD_R[1:]
+# TO_R = TO_R[1:]
+# TD_L = TD_L[1:]
+# TO_L = TO_L[1:]
+
+print('TD R',TD_R)
+print('TO R', TO_R)
+print('TD L',TD_L)
+print('TO L', TO_L)
+
+
+# Angle definition at TD
+
+R_Knee_Flexion_TD = []
+R_Hip_Flexion_TD = []
+R_Pelvis_Position_TD = []
+
+for k in range(0,len(TD_R)-1):
+    R_Knee_Flexion_TD.append(R_Knee_Flexion[TD_R[k]])
+    R_Hip_Flexion_TD.append(R_Hip_Flexion[TD_R[k]])
+    R_Pelvis_Position_TD.append(Pelvis_Y[TD_R[k]])
+    
+L_Knee_Flexion_TD = []
+L_Hip_Flexion_TD = []
+L_Pelvis_Position_TD = []
+
+for k in range(0,len(TD_L)-1):
+    L_Knee_Flexion_TD.append(L_Knee_Flexion[TD_L[k]])
+    L_Hip_Flexion_TD.append(L_Hip_Flexion[TD_L[k]])
+    L_Pelvis_Position_TD.append(Pelvis_Y[TD_L[k]])
+
+# Média dos valores de ângulo no TD e TO
+R_Knee_Flexion_TD_Mean = np.mean(R_Knee_Flexion_TD)
+R_Hip_Flexion_TD_Mean = np.mean(R_Hip_Flexion_TD)
+R_Pelvis_Position_TD_Mean = np.mean(R_Pelvis_Position_TD)
+
+L_Knee_Flexion_TD_Mean = np.mean(L_Knee_Flexion_TD)
+L_Hip_Flexion_TD_Mean = np.mean(L_Hip_Flexion_TD)
+L_Pelvis_Position_TD_Mean = np.mean(L_Pelvis_Position_TD)
+
+# Média dos valores médios
+Knee_Flexion_TD_Mean_Average = (R_Knee_Flexion_TD_Mean + L_Knee_Flexion_TD_Mean) / 2
+Hip_Flexion_TD_Mean_Average = (R_Hip_Flexion_TD_Mean + L_Hip_Flexion_TD_Mean) / 2
+Pelvis_Position_TD_Mean_Average = (R_Pelvis_Position_TD_Mean + L_Pelvis_Position_TD_Mean) / 2
+
+R_Pelvis_X_TD = []
+L_Pelvis_X_TD = []
+
+# Garantir que o loop percorra o menor comprimento entre TD_R e TD_L
+min_len = min(len(TD_R), len(TD_L))
+
+for k in range(min_len):
+    R_Pelvis_X_TD.append(Pelvis_X[TD_R[k]])
+    L_Pelvis_X_TD.append(Pelvis_X[TD_L[k]])
+    
+R_Pelvis_X_TD_Mean = np.mean(R_Pelvis_X_TD)
+L_Pelvis_X_TD_Mean = np.mean(L_Pelvis_X_TD)
+
+R_Foot_X_TD = []
+L_Foot_X_TD = []
+
+for k in range(min_len):
+    R_Foot_X_TD.append(R_Calc_X[TD_R[k]])
+    L_Foot_X_TD.append(L_Calc_X[TD_L[k]])
+
+R_Foot_X_TD_Mean = np.mean(R_Foot_X_TD)
+L_Foot_X_TD_Mean = np.mean(L_Foot_X_TD)
+
+R_Foot_Position_TD = R_Foot_X_TD_Mean - R_Pelvis_X_TD_Mean
+L_Foot_Position_TD = L_Foot_X_TD_Mean - L_Pelvis_X_TD_Mean
+
+Foot_Position_Mean_TD = (R_Foot_Position_TD + L_Foot_Position_TD) / 2
+
+def classificar_atleta(Foot_Position_Mean_TD, R_Hip_Flexion_TD_Mean, R_Knee_Flexion_TD_Mean):
+    if Hip_Flexion_TD_Mean_Average < 31.1:
+        if Foot_Position_Mean_TD >= 0.805:
+            return "Terrestre"
+        else:
+            return "Aéreo"
+    else:
+        if Knee_Flexion_TD_Mean_Average < 20.4:
+            return "Terrestre"
+        else:
+            return "Aéreo"
+
+classificacao = classificar_atleta(Foot_Position_Mean_TD, R_Hip_Flexion_TD_Mean, R_Knee_Flexion_TD_Mean)
+print(f"A classificação do atleta é: {classificacao}")
