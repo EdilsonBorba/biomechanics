@@ -1,6 +1,38 @@
 # by Edilson Borba 
 # borba.edi@gmail.com
 
+"""
+# Athlete Classification Script
+
+## Overview:
+This script processes kinematic data (position, angle, and marker data) from an athlete's motion analysis, applies filtering, and then classifies the athlete as "Aerial" or "Terrestrial" based on specific criteria derived from the angles and foot positions at touch-down (TD) events.
+
+## Workflow:
+1. **Input Data**:
+   - The script expects data in `.sto` and `.trc` file formats, containing global position, angle, and marker data.
+   - The files should include "10" in their names and must be located in the appropriate subdirectories within the provided path.
+
+2. **Low-Pass Filtering**:
+   - The raw data is passed through a low-pass Butterworth filter to remove high-frequency noise. The cut-off frequency and filter order can be adjusted in the parameters.
+
+3. **Touch-Down and Take-Off Event Detection**:
+   - Using the heel-sacrum distance, peaks in the data are identified to mark touch-down (TD) and take-off (TO) events for both legs.
+
+4. **Angle and Position Extraction**:
+   - Hip and knee flexion angles are extracted at each TD event.
+   - The foot position relative to the pelvis is calculated for further classification.
+
+5. **Athlete Classification**:
+   - Based on the average hip flexion and knee flexion angles, and foot position at TD, the athlete is classified
+
+## Parameters:
+- `Input`: Directory path where the data is stored.
+- `Output`: Directory where the processed results are saved (currently not implemented in this version).
+
+## Example Usage:
+To use this script, update the `Path` and `Name` variables to point to the correct folder with your athlete's data, and run the script. The classification will be printed at the end of execution.
+"""
+
 # Paths and parameters
 Path = 'Path to the folder with the evaluated data'
 Name = 'Example'
