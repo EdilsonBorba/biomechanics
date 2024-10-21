@@ -40,7 +40,7 @@ Output = 'Path to the output folder'
 
 # Low-pass filter parameters
 cutoff = 6  # Cut-off frequency in Hz
-order = 2  # Filter order
+order = 3  # Filter order
 
 Input = Path + Name + '/'
 
