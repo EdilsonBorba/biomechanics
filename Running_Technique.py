@@ -34,9 +34,9 @@ To use this script, update the `Path` and `Name` variables to point to the corre
 """
 
 # Paths and parameters
-Path = 'Path to the folder with the evaluated data'
-Name = 'Example'
-Output = 'Path to the output folder'
+Path = 'path'
+Name = 'name'
+Output = 'oputput'
 
 # Low-pass filter parameters
 cutoff = 6  # Cut-off frequency in Hz
@@ -133,6 +133,13 @@ if data_position is not None and data_angles is not None and data_marker is not 
     R_Hip_Flexion_TD = [R_Hip_Flexion[TD_R[k]] for k in range(len(TD_R) - 1)]
     L_Knee_Flexion_TD = [L_Knee_Flexion[TD_L[k]] for k in range(len(TD_L) - 1)]
     L_Hip_Flexion_TD = [L_Hip_Flexion[TD_L[k]] for k in range(len(TD_L) - 1)]
+    
+    # Foot position relative to pelvis at TD
+    Foot_Position_R_TD = [R_Calc_X[TD_R[k]] - Pelvis_X[TD_R[k]] for k in range(len(TD_R) - 1)]
+    Foot_Position_L_TD = [L_Calc_X[TD_L[k]] - Pelvis_X[TD_L[k]] for k in range(len(TD_L) - 1)]
+
+    # Calculate the mean foot position at TD for classification
+    Foot_Position_Mean_TD = (np.mean(Foot_Position_R_TD) + np.mean(Foot_Position_L_TD)) / 2
 
     # Calculate mean values
     R_Knee_Flexion_TD_Mean = np.mean(R_Knee_Flexion_TD)
@@ -142,22 +149,22 @@ if data_position is not None and data_angles is not None and data_marker is not 
 
     Knee_Flexion_TD_Mean_Average = (R_Knee_Flexion_TD_Mean + L_Knee_Flexion_TD_Mean) / 2
     Hip_Flexion_TD_Mean_Average = (R_Hip_Flexion_TD_Mean + L_Hip_Flexion_TD_Mean) / 2
+   
 
     # Athlete classification
     def classify_athlete(Foot_Position_Mean_TD, Hip_Flexion_TD_Mean_Average, Knee_Flexion_TD_Mean_Average):
-        if Hip_Flexion_TD_Mean_Average < 31.1:
-            if Foot_Position_Mean_TD >= 0.805:
+        if Hip_Flexion_TD_Mean_Average < 31.2:
+            if Foot_Position_Mean_TD < 0.126:
                 return "Terrestrial"
             else:
                 return "Aerial"
         else:
-            if Knee_Flexion_TD_Mean_Average < 20.4:
+            if Knee_Flexion_TD_Mean_Average < 20.6:
                 return "Terrestrial"
             else:
                 return "Aerial"
 
-    # Example usage
-    Foot_Position_Mean_TD = 0.8  # This value should be computed based on the foot position logic
+    # Classify the athlete based on mean values
     classification = classify_athlete(Foot_Position_Mean_TD, Hip_Flexion_TD_Mean_Average, Knee_Flexion_TD_Mean_Average)
     print(f"The athlete's classification is: {classification}")
 else:
